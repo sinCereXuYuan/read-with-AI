@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vision Reader</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@300;400&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════ THEMES */
+:root[data-theme="light"] {
+  --bg:        #f4f1eb;
+  --surface:   #fdfcf8;
+  --surface2:  #eeebe3;
+  --border:    #dbd7ce;
+  --accent:    #8a6a3a;
+  --accent2:   #3d6e7a;
+  --text:      #26221c;
+  --text-dim:  #9a9088;
+  --shadow:    rgba(0,0,0,0.08);
+  --shadow2:   rgba(0,0,0,0.20);
+  --scrollbar: #ccc8be;
+  --sim-green: #3a8a50;
+  --rglow:     rgba(138,106,58,0.14);
+  --cyl-bg:    #f4f1eb;
+}
+:root[data-theme="dark"] {
+  --bg:        #0d0d0e;
+  --surface:   #141416;
+  --surface2:  #1a1a1d;
+  --border:    #272730;
+  --accent:    #c8a96e;
+  --accent2:   #7b9ea8;
+  --text:      #d2cdc6;
+  --text-dim:  #68645e;
+  --shadow:    rgba(0,0,0,0.40);
+  --shadow2:   rgba(0,0,0,0.70);
+  --scrollbar: #363640;
+  --sim-green: #5aab6e;
+  --rglow:     rgba(200,169,110,0.12);
+  --cyl-bg:    #0d0d0e;
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+
+body {
+  background: var(--bg); color: var(--text);
+  font-family: 'IBM Plex Sans', sans-serif;
+  height: 100vh; display: flex; flex-direction: column;
+  overflow: hidden; transition: background .3s, color .3s;
+}
+
+/* ════════════════════════════════ HEADER */
+header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 22px; height: 50px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  flex-shrink: 0; box-shadow: 0 1px 6px var(--shadow); z-index: 30;
+  transition: background .3s, border-color .3s;
+}
+header h1 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 400; letter-spacing: .04em; color: var(--accent); white-space: nowrap; }
+.upload-btn {
+  position: relative; display: inline-flex; align-items: center; gap: 7px;
+  padding: 5px 14px; border: 1px solid var(--accent); color: var(--accent);
+  font-family: 'IBM Plex Mono', monospace; font-size: .66rem; letter-spacing: .1em;
+  text-transform: uppercase; cursor: pointer; background: transparent;
+  transition: background .18s, color .18s; user-select: none;
+}
+.upload-btn:hover { background: var(--accent); color: var(--surface); }
+.upload-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.file-hint { font-family: 'IBM Plex Mono', monospace; font-size: .55rem; color: var(--text-dim); letter-spacing: .03em; }
+.theme-wrap { display: flex; align-items: center; gap: 7px; }
+.tlabel { font-family: 'IBM Plex Mono', monospace; font-size: .61rem; color: var(--text-dim); letter-spacing: .08em; text-transform: uppercase; min-width: 28px; }
+.ttrack { position: relative; width: 38px; height: 20px; background: var(--border); border-radius: 10px; cursor: pointer; transition: background .25s; flex-shrink: 0; }
+[data-theme="dark"] .ttrack { background: var(--accent); }
+.tthumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 4px rgba(0,0,0,.2); transition: transform .22s cubic-bezier(.4,0,.2,1); display: flex; align-items: center; justify-content: center; font-size: 9px; line-height: 1; }
+[data-theme="dark"] .tthumb { transform: translateX(18px); }
+.status-pill { margin-left: auto; display: flex; align-items: center; gap: 7px; font-family: 'IBM Plex Mono', monospace; font-size: .63rem; letter-spacing: .07em; color: var(--text-dim); white-space: nowrap; }
+.sdot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); transition: background .4s; flex-shrink: 0; }
+.sdot.ready      { background: var(--sim-green); box-shadow: 0 0 5px var(--sim-green); }
+.sdot.loading    { background: var(--accent); animation: pulse 1.2s infinite; }
+.sdot.generating { background: var(--accent2); animation: pulse .7s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+/* ════════════════════════════════ WORKSPACE */
+.workspace { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* ════════════════════════════════ V-RESIZER */
+.v-resizer { width: 7px; flex-shrink: 0; cursor: col-resize; position: relative; background: transparent; z-index: 10; display: flex; align-items: center; justify-content: center; transition: background .15s; }
+.v-resizer::before { content: ''; position: absolute; top: 0; bottom: 0; left: 2.5px; width: 2px; background: var(--border); transition: background .15s, width .1s, left .1s; }
+.v-resizer:hover::before,.v-resizer.dragging::before { background: var(--accent); width: 3px; left: 2px; }
+.v-resizer:hover,.v-resizer.dragging { background: var(--rglow); }
+.grip { display: flex; flex-direction: column; gap: 3px; position: relative; z-index: 1; pointer-events: none; }
+.grip i { display: block; width: 3px; height: 3px; border-radius: 50%; background: var(--text-dim); opacity: .4; transition: background .15s, opacity .15s; }
+.v-resizer:hover .grip i,.v-resizer.dragging .grip i { background: var(--accent); opacity: 1; }
+
+/* ════════════════════════════════ LEFT COLUMN */
+.left-col { width: 340px; min-width: 180px; max-width: 65vw; flex-shrink: 0; display: flex; flex-direction: column; background: var(--surface); overflow: hidden; transition: background .3s; }
+
+/* ── CAROUSEL */
+.carousel-outer { flex: 1 1 0; min-height: 120px; position: relative; overflow: hidden; background: var(--surface2); transition: background .3s; }
+.carousel-outer::before,.carousel-outer::after { content: ''; position: absolute; left: 0; right: 0; z-index: 6; pointer-events: none; }
+.carousel-outer::before { top: 0; height: 20%; background: linear-gradient(to bottom, var(--surface2), transparent); }
+.carousel-outer::after  { bottom: 0; height: 20%; background: linear-gradient(to top,   var(--surface2), transparent); }
+.img-strip { position: absolute; left: 0; right: 0; top: 0; display: flex; flex-direction: column; will-change: transform; transition: transform .52s cubic-bezier(.42,0,.28,1); }
+.img-slide { width: 100%; flex-shrink: 0; position: relative; overflow: hidden; cursor: pointer; }
+.img-slide::after { content: ''; position: absolute; inset: 0; z-index: 2; background: rgba(0,0,0,0); transition: background .4s; pointer-events: none; }
+.img-slide.prev::after { background: rgba(0,0,0,.50); }
+.img-slide.next::after { background: rgba(0,0,0,.50); }
+[data-theme="light"] .img-slide.prev::after { background: rgba(255,255,255,.58); }
+[data-theme="light"] .img-slide.next::after { background: rgba(255,255,255,.58); }
+.img-slide img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .45s; }
+.slide-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; color: var(--text-dim); gap: 8px; }
+.slide-placeholder .icon { font-size: 1.8rem; opacity: .2; }
+.slide-placeholder p { font-family: 'IBM Plex Mono', monospace; font-size: .62rem; opacity: .5; text-align: center; line-height: 1.7; }
+.slide-shimmer { position: absolute; inset: 0; z-index: 3; background: linear-gradient(110deg, transparent 30%, rgba(200,169,110,.09) 50%, transparent 70%); background-size: 200% 100%; animation: shimmer 1.4s infinite; display: none; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.slide-nav { position: absolute; left: 0; right: 0; z-index: 7; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: .62rem; letter-spacing: .08em; color: var(--accent); opacity: 0; transition: opacity .25s; pointer-events: none; height: 28px; }
+.img-slide.prev .slide-nav { bottom: 6px; }
+.img-slide.next .slide-nav { top: 6px; }
+.img-slide.prev:hover .slide-nav,.img-slide.next:hover .slide-nav { opacity: 1; }
+
+/* ── PROMPT BAR */
+.prompt-bar { flex-shrink: 0; padding: 8px 14px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: relative; transition: border-color .3s; }
+.prompt-badge { font-family: 'IBM Plex Mono', monospace; font-size: .6rem; color: var(--accent2); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid var(--accent2); border-radius: 2px; transition: background .18s; white-space: nowrap; }
+.prompt-badge:hover { background: color-mix(in srgb, var(--accent2) 12%, transparent); }
+.prompt-badge::after { content: '▾'; font-size: .7rem; }
+#chunk-counter { font-family: 'IBM Plex Mono', monospace; font-size: .6rem; color: var(--text-dim); }
+.sim-bar-wrap { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--border); }
+.sim-bar { height: 100%; width: 0%; background: var(--accent); transition: width .4s, background .4s; }
+
+/* ── PROMPT DROPDOWN */
+.prompt-dropdown { position: absolute; bottom: calc(100% + 2px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 -8px 28px var(--shadow2); z-index: 40; max-height: 280px; overflow-y: auto; padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: .66rem; line-height: 1.8; color: var(--text); display: none; transition: background .3s; }
+.prompt-dropdown.open { display: block; }
+.prompt-dropdown::-webkit-scrollbar { width: 4px; }
+.prompt-dropdown::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+.prompt-close { position: sticky; top: 0; right: 0; float: right; cursor: pointer; color: var(--text-dim); font-size: .8rem; line-height: 1; padding: 0 0 4px 8px; transition: color .15s; }
+.prompt-close:hover { color: var(--accent); }
+
+/* ════════════════════════════════ RIGHT COLUMN – CYLINDER */
+.right-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 180px; position: relative; }
+
+.cyl-stage { flex: 1; position: relative; overflow: hidden; }
+
+/* ── scrollable container */
+#text-scroll {
+  position: absolute; inset: 0;
+  overflow-y: scroll;
+  padding-left: 52px; padding-right: 52px;
+  /* large top/bottom padding so first/last line can sit at vertical center */
+  padding-top:    42vh;
+  padding-bottom: 42vh;
+}
+#text-scroll::-webkit-scrollbar { width: 7px; }
+#text-scroll::-webkit-scrollbar-track { background: var(--surface2); }
+#text-scroll::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+#text-scroll::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* ── The text container — single continuous flow */
+#pdf-text { font-family: 'IBM Plex Sans', sans-serif; font-size: .94rem; line-height: 2.05; color: var(--text); max-width: 660px; margin: 0 auto; transition: color .3s; }
+
+/* ── Each visual line is wrapped in a <div class="tl"> by JS after layout */
+.tl {
+  /* only opacity is animated — no transforms, no blur */
+  will-change: opacity;
+}
+
+/* ── Parsing overlay — shown while file is being processed */
+#parse-overlay {
+  position: absolute; inset: 0; z-index: 20;
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px;
+  background: var(--bg);
+  transition: background .3s;
+}
+#parse-overlay.visible { display: flex; }
+#parse-overlay .parse-icon {
+  font-size: 2.8rem; opacity: .35;
+  animation: spin 2.4s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#parse-overlay .parse-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem; font-weight: 400;
+  color: var(--text); letter-spacing: .02em;
+}
+#parse-overlay .parse-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .78rem; color: var(--text-dim);
+  letter-spacing: .1em; text-transform: uppercase;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+#parse-overlay .parse-filename {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .7rem; color: var(--accent);
+  letter-spacing: .04em; max-width: 80%; text-align: center;
+  word-break: break-all;
+}
+
+/* ── Chunk anchor spans (invisible, zero-height) */
+.chunk-anchor { display: block; height: 0; overflow: hidden; }
+/* ── Paragraph blank-line spacer */
+.para-gap { height: 1.3em; }
+.cyl-fade-top, .cyl-fade-bot {
+  /* right: 14px leaves the scrollbar lane (7px wide + 7px gap) uncovered */
+  position: absolute; left: 0; right: 14px; pointer-events: none; z-index: 5;
+}
+.cyl-fade-top {
+  top: 0; height: 30%;
+  background: linear-gradient(to bottom,
+    var(--cyl-bg) 0%, var(--cyl-bg) 10%,
+    color-mix(in srgb, var(--cyl-bg) 80%, transparent) 45%,
+    transparent 100%);
+}
+.cyl-fade-bot {
+  bottom: 0; height: 30%;
+  background: linear-gradient(to top,
+    var(--cyl-bg) 0%, var(--cyl-bg) 10%,
+    color-mix(in srgb, var(--cyl-bg) 80%, transparent) 45%,
+    transparent 100%);
+}
+
+/* ── Empty state */
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 14px; color: var(--text-dim); }
+.empty-state .big-icon { font-size: 3.5rem; opacity: .1; }
+.empty-state h2 { font-family: 'Playfair Display', serif; font-size: 1.35rem; font-weight: 400; opacity: .45; }
+.empty-state p  { font-family: 'IBM Plex Mono', monospace; font-size: .68rem; letter-spacing: .06em; opacity: .35; }
+
+/* page-break marker */
+.pb-marker { display: block; height: 0; }
+
+body.resizing-col { cursor: col-resize !important; user-select: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Vision Reader</h1>
+  <label class="upload-btn">⊕ Open File<input type="file" id="file-input" accept=".pdf,.txt,.text,.md,.markdown,.docx,.epub,.rtf"></label>
+  <span class="file-hint">pdf · txt · md · docx · epub · rtf</span>
+  <div class="theme-wrap">
+    <span class="tlabel" id="tlabel">Light</span>
+    <div class="ttrack" id="ttrack"><div class="tthumb" id="tthumb">☀</div></div>
+  </div>
+  <div class="status-pill"><div class="sdot" id="sdot"></div><span id="stext">Initialising…</span></div>
+</header>
+
+<div class="workspace" id="workspace">
+
+  <!-- ══ LEFT ══ -->
+  <div class="left-col" id="left-col">
+    <div class="carousel-outer" id="carousel-outer">
+      <div class="img-strip" id="img-strip"></div>
+    </div>
+    <div class="prompt-bar" id="prompt-bar">
+      <div class="prompt-badge" id="prompt-badge">Current Prompt</div>
+      <span id="chunk-counter">—</span>
+      <div class="sim-bar-wrap"><div class="sim-bar" id="sim-bar"></div></div>
+      <div class="prompt-dropdown" id="prompt-dropdown">
+        <span class="prompt-close" id="prompt-close">✕</span>
+        <div id="prompt-text">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ V-RESIZER ══ -->
+  <div class="v-resizer" id="v-resizer"><div class="grip"><i></i><i></i><i></i><i></i><i></i></div></div>
+
+  <!-- ══ RIGHT — cylinder text ══ -->
+  <div class="right-col">
+    <div class="cyl-stage" id="cyl-stage">
+      <!-- colour fades only -->
+      <div class="cyl-fade-top"></div>
+      <div class="cyl-fade-bot"></div>
+
+      <!-- parsing overlay — shown over the text panel while uploading -->
+      <div id="parse-overlay">
+        <div class="parse-icon">⟳</div>
+        <div class="parse-title">Parsing document…</div>
+        <div class="parse-sub">Please wait</div>
+        <div class="parse-filename" id="parse-filename"></div>
+      </div>
+
+      <div id="text-scroll">
+        <div class="empty-state" id="empty-state">
+          <div class="big-icon">⬡</div>
+          <h2>No document loaded</h2>
+          <p>Open a file to begin reading</p>
+        </div>
+        <div id="pdf-text" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /workspace -->
+
+<script>
+/* ══════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════ */
+let modelReady   = false;
+let chunks       = [];          // ~300-word chunks for image generation
+let currentIdx   = 0;
+let images       = {};
+let genQueue     = [];
+let isGenerating = false;
+let scrollTimer  = null;
+let rafId        = null;
+
+// Carousel geometry
+let carH = 0, CUR_H = 0, PREV_H = 0;
+
+/* ══════════════════════════════════════════════════════
+   THEME
+══════════════════════════════════════════════════════ */
+const html = document.documentElement;
+function setTheme(dark) {
+  html.setAttribute("data-theme", dark ? "dark" : "light");
+  document.getElementById("tthumb").textContent = dark ? "☾" : "☀";
+  document.getElementById("tlabel").textContent  = dark ? "Dark" : "Light";
+  try { localStorage.setItem("vr-theme", dark ? "dark" : "light"); } catch {}
+}
+try { setTheme(localStorage.getItem("vr-theme") === "dark"); } catch { setTheme(false); }
+document.getElementById("ttrack").addEventListener("click", () =>
+  setTheme(html.getAttribute("data-theme") !== "dark"));
+
+/* ══════════════════════════════════════════════════════
+   V-RESIZER
+══════════════════════════════════════════════════════ */
+(function(){
+  const handle = document.getElementById("v-resizer");
+  const target = document.getElementById("left-col");
+  const ws     = document.getElementById("workspace");
+  let dragging = false, startX = 0, startW = 0;
+  handle.addEventListener("mousedown", e => {
+    dragging = true; startX = e.clientX; startW = target.offsetWidth;
+    handle.classList.add("dragging"); document.body.classList.add("resizing-col"); e.preventDefault();
+  });
+  document.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    const w = Math.max(180, Math.min(startW + (e.clientX - startX), ws.offsetWidth - 180 - 7));
+    target.style.width = w + "px"; recalcCarousel();
+  });
+  document.addEventListener("mouseup", () => {
+    if (!dragging) return; dragging = false;
+    handle.classList.remove("dragging"); document.body.classList.remove("resizing-col");
+  });
+})();
+
+/* ══════════════════════════════════════════════════════
+   STATUS
+══════════════════════════════════════════════════════ */
+function setStatus(cls, msg) {
+  document.getElementById("sdot").className = "sdot " + cls;
+  document.getElementById("stext").textContent = msg;
+}
+async function pollStatus() {
+  try {
+    const d = await fetch("/status").then(r => r.json());
+    if (d.ready)        { setStatus("ready","Model ready"); modelReady = true; processQueue(); }
+    else if (d.loading) { setStatus("loading","Loading model…"); setTimeout(pollStatus, 2000); }
+  } catch { setTimeout(pollStatus, 3000); }
+}
+pollStatus();
+
+/* ══════════════════════════════════════════════════════
+   FILE UPLOAD
+══════════════════════════════════════════════════════ */
+document.getElementById("file-input").addEventListener("change", async function() {
+  const file = this.files[0]; if (!file) return;
+  setStatus("loading","Parsing…");
+
+  // Show big overlay in text panel
+  const overlay  = document.getElementById("parse-overlay");
+  const fnEl     = document.getElementById("parse-filename");
+  fnEl.textContent = file.name;
+  overlay.classList.add("visible");
+
+  const fd = new FormData(); fd.append("file", file);
+  try {
+    const d = await fetch("/upload",{ method:"POST", body:fd }).then(r=>r.json());
+    if (d.error) { alert(d.error); return; }
+    initDoc(d.chunks, d.display_text);
+  } catch(e) { alert("Upload failed: " + e); }
+  finally {
+    overlay.classList.remove("visible");
+    setStatus(modelReady?"ready":"loading", modelReady?"Model ready":"Loading model…");
+  }
+});
+
+/* ══════════════════════════════════════════════════════
+   DOC INIT
+══════════════════════════════════════════════════════ */
+function initDoc(newChunks, displayText) {
+  chunks = newChunks; currentIdx = 0;
+  images = {}; genQueue = []; isGenerating = false;
+
+  renderText(displayText, newChunks);
+  buildCarousel();
+  recalcCarousel();
+
+  // after DOM paint, wrap lines and scroll to top
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      wrapLines();
+      scrollToChunk(0, false);
+      scheduleCylinder();
+      [0,1,2].forEach(i => { if (i < chunks.length) enqueue(i); });
+      processQueue();
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   TEXT RENDER — single continuous flow with invisible chunk anchors
+══════════════════════════════════════════════════════ */
+function renderText(displayText, chunkList) {
+  const el    = document.getElementById("pdf-text");
+  const empty = document.getElementById("empty-state");
+  empty.style.display = "none"; el.style.display = "block";
+
+  // Split on 2+ newlines to get paragraphs; single newlines become a space.
+  const paragraphs = displayText.split(/\n{2,}/);
+
+  // Work out which paragraph each chunk starts at by counting accumulated words.
+  const chunkWordCounts = chunkList.map(c => c.split(/\s+/).filter(Boolean).length);
+  const paraWordCounts  = paragraphs.map(p => p.split(/\s+/).filter(Boolean).length);
+
+  // chunkStartPara[ci] = paragraph index where chunk ci begins
+  const chunkStartPara = new Array(chunkList.length).fill(0);
+  let wordsSoFar = 0, ci = 0, threshold = 0;
+  paraWordCounts.forEach((wc, pi) => {
+    while (ci < chunkList.length && wordsSoFar >= threshold) {
+      chunkStartPara[ci] = pi;
+      threshold += chunkWordCounts[ci] || 300;
+      ci++;
+    }
+    wordsSoFar += wc;
+  });
+
+  // Build HTML — paragraphs separated by a blank-line spacer div,
+  // with invisible chunk-anchor spans injected before the relevant paragraph.
+  let html = "";
+  paragraphs.forEach((para, pi) => {
+    // Inject chunk anchors for chunks beginning at this paragraph
+    chunkStartPara.forEach((startPi, idx) => {
+      if (startPi === pi)
+        html += `<span class="chunk-anchor" id="ca-${idx}" data-idx="${idx}"></span>`;
+    });
+    if (pi > 0) html += `<div class="para-gap"></div>`;   // blank line spacer
+    html += `<span>${esc(para.replace(/\n/g, " "))}</span>`;
+  });
+
+  el.innerHTML = html;
+  document.getElementById("text-scroll").addEventListener("scroll", onScroll, { passive: true });
+}
+
+function esc(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+/* ══════════════════════════════════════════════════════
+   LINE WRAPPING
+   After the text is laid out by the browser, we walk the
+   TextNode tree and split it into individual visual lines
+   by measuring bounding rects. Each line gets its own <div class="tl">
+   so the cylinder transform can be applied per-line.
+══════════════════════════════════════════════════════ */
+function wrapLines() {
+  const el = document.getElementById("pdf-text");
+  if (!el) return;
+
+  // Collect all text nodes (skip chunk-anchor spans)
+  const textNodes = [];
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+    acceptNode: n => (n.parentElement.classList.contains("chunk-anchor"))
+      ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+  });
+  let n;
+  while ((n = walker.nextNode())) textNodes.push(n);
+
+  // For each text node, split into individual lines using Range rects
+  // Then replace the text node with per-line <div class="tl"> elements
+  textNodes.forEach(textNode => {
+    const text = textNode.textContent;
+    if (!text.trim()) return;
+
+    const parent = textNode.parentNode;
+    const frag   = document.createDocumentFragment();
+
+    // Walk word by word, accumulate ranges until y changes (= new line)
+    const words = text.split(/(\s+)/);
+    let lineWords = [];
+    let lineTop   = null;
+
+    const range = document.createRange();
+
+    // helper: flush accumulated words into a .tl div
+    function flush() {
+      if (!lineWords.length) return;
+      const div = document.createElement("div");
+      div.className = "tl";
+      div.textContent = lineWords.join("");
+      frag.appendChild(div);
+      lineWords = [];
+    }
+
+    // We need to find line breaks. Strategy: measure each word's top.
+    // Build an array of {word, top} first.
+    const wordMeta = [];
+    let charOffset = 0;
+    words.forEach(word => {
+      if (!word) { charOffset += word.length; return; }
+      range.setStart(textNode, charOffset);
+      range.setEnd(textNode, charOffset + word.length);
+      const rects = range.getClientRects();
+      const top   = rects.length ? Math.round(rects[0].top) : (lineTop ?? 0);
+      wordMeta.push({ word, top });
+      charOffset += word.length;
+    });
+    range.detach();
+
+    wordMeta.forEach(({ word, top }) => {
+      if (lineTop === null) { lineTop = top; lineWords.push(word); return; }
+      if (top !== lineTop) { flush(); lineTop = top; }
+      lineWords.push(word);
+    });
+    flush();
+
+    parent.replaceChild(frag, textNode);
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   CYLINDER TRANSFORM — runs every RAF during scroll
+══════════════════════════════════════════════════════ */
+function applyCylinder() {
+  const stage = document.getElementById("cyl-stage");
+  if (!stage) return;
+
+  const stageRect  = stage.getBoundingClientRect();
+  const midY       = stageRect.top + stageRect.height * 0.5;
+  const halfH      = stageRect.height * 0.5;
+  const stageTop   = stageRect.top;
+  const stageBottom= stageRect.bottom;
+
+  document.querySelectorAll(".tl").forEach(line => {
+    const r      = line.getBoundingClientRect();
+    const lineMid= r.top + r.height * 0.5;
+
+    // Hide lines fully off-screen
+    if (r.bottom < stageTop - 40 || r.top > stageBottom + 40) {
+      line.style.opacity = "0";
+      return;
+    }
+
+    // Normalised distance 0=center 1=edge
+    const absd = Math.min(Math.abs((lineMid - midY) / halfH), 1);
+
+    if (absd < 0.30) {
+      // Centre clear zone — fully visible
+      line.style.opacity = "1";
+    } else {
+      // Fade out toward edges; the CSS gradient handles the hard mask
+      const t = (absd - 0.30) / 0.70;
+      line.style.opacity = Math.max(0, 1 - t * 1.2).toFixed(3);
+    }
+  });
+}
+
+function scheduleCylinder() {
+  cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(applyCylinder);
+}
+
+/* ══════════════════════════════════════════════════════
+   SCROLL → CHUNK DETECTION
+══════════════════════════════════════════════════════ */
+function onScroll() {
+  scheduleCylinder();
+  clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(detectChunk, 300);
+}
+
+function detectChunk() {
+  const stage = document.getElementById("cyl-stage");
+  if (!stage) return;
+  const midY = stage.getBoundingClientRect().top + stage.offsetHeight * 0.5;
+
+  // Find which chunk-anchor is closest to screen center
+  const anchors = document.querySelectorAll(".chunk-anchor");
+  let best = currentIdx, bestDist = Infinity;
+  anchors.forEach(a => {
+    const r = a.getBoundingClientRect();
+    const d = Math.abs(r.top - midY);
+    if (d < bestDist) { bestDist = d; best = parseInt(a.dataset.idx); }
+  });
+
+  if (best !== currentIdx) goToChunk(best, false);
+}
+
+/* ══════════════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════════════ */
+function goToChunk(idx, scrollText) {
+  if (idx < 0 || idx >= chunks.length) return;
+  currentIdx = idx;
+
+  animateCarousel(idx);
+  document.getElementById("chunk-counter").textContent = `${idx+1} / ${chunks.length}`;
+  document.getElementById("prompt-text").textContent   = chunks[idx] || "";
+
+  // Queue neighbours
+  [idx, idx+1, idx-1, idx+2, idx-2].forEach(i => {
+    if (i >= 0 && i < chunks.length) enqueue(i);
+  });
+  processQueue();
+
+  if (scrollText) scrollToChunk(idx, true);
+}
+
+function scrollToChunk(idx, smooth) {
+  const anchor   = document.getElementById(`ca-${idx}`);
+  const scroller = document.getElementById("text-scroll");
+  const stage    = document.getElementById("cyl-stage");
+  if (!anchor || !scroller || !stage) return;
+
+  const stageRect  = stage.getBoundingClientRect();
+  const anchorRect = anchor.getBoundingClientRect();
+  const offset     = anchorRect.top - stageRect.top - stageRect.height * 0.5;
+  scroller.scrollBy({ top: offset, behavior: smooth ? "smooth" : "instant" });
+}
+
+/* ══════════════════════════════════════════════════════
+   CAROUSEL
+══════════════════════════════════════════════════════ */
+const strip = document.getElementById("img-strip");
+
+function buildCarousel() {
+  strip.innerHTML = "";
+  chunks.forEach((_, i) => {
+    const slide = document.createElement("div");
+    slide.className = "img-slide";
+    slide.dataset.idx = i;
+    slide.innerHTML = `
+      <div class="slide-shimmer" id="sh-${i}"></div>
+      <div class="slide-placeholder" id="ph-${i}">
+        <div class="icon">◈</div><p>Pending…</p>
+      </div>
+      <img id="si-${i}" style="display:none;opacity:0" alt="">
+      <div class="slide-nav"></div>`;
+    slide.addEventListener("click", () => {
+      const ii = parseInt(slide.dataset.idx);
+      if (ii !== currentIdx) goToChunk(ii, true);
+    });
+    strip.appendChild(slide);
+  });
+}
+
+function recalcCarousel() {
+  const outer = document.getElementById("carousel-outer");
+  carH  = outer.offsetHeight;
+  CUR_H = Math.round(carH * 0.60);
+  PREV_H= Math.round(carH * 0.20);
+  document.querySelectorAll(".img-slide").forEach(s => s.style.height = CUR_H + "px");
+  positionStrip(currentIdx, false);
+}
+
+function positionStrip(idx, animate) {
+  if (!animate) { strip.style.transition = "none"; strip.offsetHeight; }
+  strip.style.transform = `translateY(${-(idx * CUR_H) + PREV_H}px)`;
+  if (!animate) { strip.offsetHeight; strip.style.transition = ""; }
+  updateSlideClasses(idx);
+}
+
+function updateSlideClasses(idx) {
+  document.querySelectorAll(".img-slide").forEach(s => {
+    const i = parseInt(s.dataset.idx);
+    s.classList.remove("prev","current","next");
+    if      (i === idx-1) s.classList.add("prev");
+    else if (i === idx)   s.classList.add("current");
+    else if (i === idx+1) s.classList.add("next");
+    const nav = s.querySelector(".slide-nav");
+    if (i === idx-1) nav.textContent = "↑ previous";
+    if (i === idx+1) nav.textContent = "↓ next";
+  });
+}
+
+function animateCarousel(idx) { positionStrip(idx, true); }
+
+function setSlideImage(idx, b64) {
+  const img = document.getElementById(`si-${idx}`);
+  const ph  = document.getElementById(`ph-${idx}`);
+  const sh  = document.getElementById(`sh-${idx}`);
+  if (!img) return;
+  if (sh) sh.style.display = "none";
+  if (ph) ph.style.display = "none";
+  img.style.display = "block"; img.style.opacity = "0";
+  img.src = `data:image/jpeg;base64,${b64}`;
+  img.onload = () => { img.style.opacity = "1"; };
+}
+function setSlideLoading(idx, on) {
+  const sh = document.getElementById(`sh-${idx}`);
+  if (sh) sh.style.display = on ? "block" : "none";
+}
+
+/* ══════════════════════════════════════════════════════
+   GENERATION QUEUE
+══════════════════════════════════════════════════════ */
+function enqueue(idx) {
+  if (images[idx] || genQueue.includes(idx)) return;
+  images[idx] = "queued"; genQueue.push(idx);
+}
+
+async function processQueue() {
+  if (!modelReady || isGenerating || genQueue.length === 0) return;
+  genQueue.sort((a,b) => Math.abs(a-currentIdx) - Math.abs(b-currentIdx));
+  const idx = genQueue.shift();
+  if (images[idx] && images[idx] !== "queued") { processQueue(); return; }
+
+  images[idx] = "loading"; isGenerating = true;
+  setSlideLoading(idx, true);
+  setStatus("generating", `Generating ${idx+1}/${chunks.length}…`);
+
+  try {
+    const r = await fetch("/generate",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:chunks[idx]}) });
+    const d = await r.json();
+    if (d.image) { images[idx] = d.image; setSlideImage(idx, d.image); }
+    else images[idx] = "error";
+  } catch(e) { images[idx] = "error"; console.error(e); }
+  finally {
+    setSlideLoading(idx, false); isGenerating = false;
+    setStatus("ready","Model ready");
+  }
+  setTimeout(processQueue, 100);
+}
+
+/* ══════════════════════════════════════════════════════
+   PROMPT DROPDOWN
+══════════════════════════════════════════════════════ */
+document.getElementById("prompt-badge").addEventListener("click", () =>
+  document.getElementById("prompt-dropdown").classList.toggle("open"));
+document.getElementById("prompt-close").addEventListener("click", e => {
+  e.stopPropagation();
+  document.getElementById("prompt-dropdown").classList.remove("open");
+});
+document.addEventListener("click", e => {
+  if (!document.getElementById("prompt-bar").contains(e.target))
+    document.getElementById("prompt-dropdown").classList.remove("open");
+});
+
+/* ══════════════════════════════════════════════════════
+   WINDOW RESIZE
+══════════════════════════════════════════════════════ */
+window.addEventListener("resize", () => { recalcCarousel(); scheduleCylinder(); });
+
+document.getElementById("chunk-counter").textContent = "—";
+</script>
+</body>
+</html>
