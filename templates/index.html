@@ -120,32 +120,84 @@ header h1 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weig
 .img-slide.prev:hover .slide-nav,.img-slide.next:hover .slide-nav { opacity: 1; }
 
 /* ── PROMPT BAR */
-.prompt-bar { flex-shrink: 0; padding: 8px 14px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: relative; transition: border-color .3s; }
-.prompt-badge { font-family: 'IBM Plex Mono', monospace; font-size: .6rem; color: var(--accent2); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid var(--accent2); border-radius: 2px; transition: background .18s; white-space: nowrap; }
-.prompt-badge:hover { background: color-mix(in srgb, var(--accent2) 12%, transparent); }
-.prompt-badge::after { content: '▾'; font-size: .7rem; }
+.prompt-bar { flex-shrink: 0; padding: 8px 14px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; position: relative; transition: border-color .3s; }
 #chunk-counter { font-family: 'IBM Plex Mono', monospace; font-size: .6rem; color: var(--text-dim); }
 .sim-bar-wrap { position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--border); }
 .sim-bar { height: 100%; width: 0%; background: var(--accent); transition: width .4s, background .4s; }
-
-/* ── PROMPT DROPDOWN */
-.prompt-dropdown { position: absolute; bottom: calc(100% + 2px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 -8px 28px var(--shadow2); z-index: 40; max-height: 280px; overflow-y: auto; padding: 14px 16px; font-family: 'IBM Plex Mono', monospace; font-size: .66rem; line-height: 1.8; color: var(--text); display: none; transition: background .3s; }
-.prompt-dropdown.open { display: block; }
-.prompt-dropdown::-webkit-scrollbar { width: 4px; }
-.prompt-dropdown::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
-.prompt-close { position: sticky; top: 0; right: 0; float: right; cursor: pointer; color: var(--text-dim); font-size: .8rem; line-height: 1; padding: 0 0 4px 8px; transition: color .15s; }
-.prompt-close:hover { color: var(--accent); }
 
 /* ════════════════════════════════ RIGHT COLUMN – CYLINDER */
 .right-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 180px; position: relative; }
 
 .cyl-stage { flex: 1; position: relative; overflow: hidden; }
 
+/* ── Prompt range indicator */
+#prompt-indicator {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 14px;
+  z-index: 8;
+  pointer-events: none;
+}
+#prompt-indicator-track {
+  position: absolute;
+  left: 5px; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--border);
+  border-radius: 2px;
+}
+#prompt-indicator-range {
+  position: absolute;
+  left: 3px;
+  width: 7px;
+  background: var(--accent);
+  border-radius: 3px;
+  opacity: 0.7;
+  transition: top .35s cubic-bezier(.42,0,.28,1), height .35s cubic-bezier(.42,0,.28,1);
+  pointer-events: auto;
+  cursor: default;
+}
+#prompt-indicator-range:hover {
+  opacity: 1;
+}
+
+/* ── Prompt hover overlay — border-only rectangle over text range */
+#prompt-tooltip {
+  position: absolute;
+  /* left/right/top/height all set by JS */
+  left: 14px; right: 14px;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  border: 1.5px solid var(--accent);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent),
+              inset 0 0 0 9999px color-mix(in srgb, var(--accent) 6%, transparent);
+}
+#prompt-tooltip.visible {
+  opacity: 1;
+}
+/* Small label pinned to top-left corner of the rectangle */
+#prompt-tooltip::before {
+  content: 'prompt';
+  position: absolute;
+  top: -1px; left: -1px;
+  background: var(--accent);
+  color: var(--surface);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: .52rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px 0 2px 0;
+  line-height: 1.6;
+}
+
 /* ── scrollable container */
 #text-scroll {
   position: absolute; inset: 0;
   overflow-y: scroll;
-  padding-left: 52px; padding-right: 52px;
+  padding-left: 66px; padding-right: 52px;
   /* large top/bottom padding so first/last line can sit at vertical center */
   padding-top:    42vh;
   padding-bottom: 42vh;
@@ -204,6 +256,8 @@ header h1 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weig
 .cyl-fade-top, .cyl-fade-bot {
   /* right: 14px leaves the scrollbar lane (7px wide + 7px gap) uncovered */
   position: absolute; left: 0; right: 14px; pointer-events: none; z-index: 5;
+  opacity: var(--fade-strength, 1);
+  transition: opacity .25s;
 }
 .cyl-fade-top {
   top: 0; height: 30%;
@@ -230,6 +284,47 @@ header h1 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weig
 .pb-marker { display: block; height: 0; }
 
 body.resizing-col { cursor: col-resize !important; user-select: none; }
+
+/* ── Fade control */
+.fade-wrap {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'IBM Plex Mono', monospace; font-size: .6rem;
+  color: var(--text-dim); letter-spacing: .05em;
+  white-space: nowrap;
+}
+.fade-wrap label { text-transform: uppercase; font-size: .55rem; letter-spacing: .09em; }
+#fade-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 64px; height: 3px;
+  background: var(--border); border-radius: 2px; cursor: pointer; outline: none;
+}
+#fade-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--accent); cursor: pointer;
+  transition: background .15s;
+}
+#fade-slider:hover::-webkit-slider-thumb { background: var(--accent2); }
+#fade-val {
+  min-width: 26px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Selection generate button */
+.sel-btn {
+  display: none; /* shown by JS when text is selected */
+  align-items: center; gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--accent2); color: var(--accent2);
+  font-family: 'IBM Plex Mono', monospace; font-size: .63rem;
+  letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer; background: transparent; white-space: nowrap;
+  transition: background .18s, color .18s;
+  animation: sel-pop .15s ease;
+}
+.sel-btn:hover { background: var(--accent2); color: var(--surface); }
+.sel-btn.active { background: var(--accent2); color: var(--surface); }
+@keyframes sel-pop { from { opacity:0; transform:scale(.93); } to { opacity:1; transform:scale(1); } }
 </style>
 </head>
 <body>
@@ -238,6 +333,12 @@ body.resizing-col { cursor: col-resize !important; user-select: none; }
   <h1>Vision Reader</h1>
   <label class="upload-btn">⊕ Open File<input type="file" id="file-input" accept=".pdf,.txt,.text,.md,.markdown,.docx,.epub,.rtf"></label>
   <span class="file-hint">pdf · txt · md · docx · epub · rtf</span>
+  <button class="sel-btn" id="sel-btn" title="Generate image from selected text">⊙ Generate from selection</button>
+  <div class="fade-wrap">
+    <label for="fade-slider">Fade</label>
+    <input type="range" id="fade-slider" min="0" max="100" value="100" step="5">
+    <span id="fade-val">100%</span>
+  </div>
   <div class="theme-wrap">
     <span class="tlabel" id="tlabel">Light</span>
     <div class="ttrack" id="ttrack"><div class="tthumb" id="tthumb">☀</div></div>
@@ -253,13 +354,8 @@ body.resizing-col { cursor: col-resize !important; user-select: none; }
       <div class="img-strip" id="img-strip"></div>
     </div>
     <div class="prompt-bar" id="prompt-bar">
-      <div class="prompt-badge" id="prompt-badge">Current Prompt</div>
       <span id="chunk-counter">—</span>
       <div class="sim-bar-wrap"><div class="sim-bar" id="sim-bar"></div></div>
-      <div class="prompt-dropdown" id="prompt-dropdown">
-        <span class="prompt-close" id="prompt-close">✕</span>
-        <div id="prompt-text">—</div>
-      </div>
     </div>
   </div>
 
@@ -280,6 +376,15 @@ body.resizing-col { cursor: col-resize !important; user-select: none; }
         <div class="parse-sub">Please wait</div>
         <div class="parse-filename" id="parse-filename"></div>
       </div>
+
+      <!-- Prompt range indicator bar -->
+      <div id="prompt-indicator">
+        <div id="prompt-indicator-track"></div>
+        <div id="prompt-indicator-range"></div>
+      </div>
+
+      <!-- Prompt hover overlay — border rectangle over text range -->
+      <div id="prompt-tooltip"></div>
 
       <div id="text-scroll">
         <div class="empty-state" id="empty-state">
@@ -310,6 +415,13 @@ let rafId        = null;
 // Carousel geometry
 let carH = 0, CUR_H = 0, PREV_H = 0;
 
+// Fade strength 0–1 (controls both CSS gradient overlay and per-line opacity)
+let fadeStrength = 1.0;
+
+// Selection-based generation state
+let selectionPrompt    = null;  // text of current selection, or null
+let selectionRange     = null;  // {top, bottom} in stage-relative px, or null
+
 /* ══════════════════════════════════════════════════════
    THEME
 ══════════════════════════════════════════════════════ */
@@ -323,6 +435,28 @@ function setTheme(dark) {
 try { setTheme(localStorage.getItem("vr-theme") === "dark"); } catch { setTheme(false); }
 document.getElementById("ttrack").addEventListener("click", () =>
   setTheme(html.getAttribute("data-theme") !== "dark"));
+
+/* ══════════════════════════════════════════════════════
+   FADE CONTROL
+══════════════════════════════════════════════════════ */
+(function() {
+  const slider  = document.getElementById("fade-slider");
+  const valSpan = document.getElementById("fade-val");
+  function applyFade(v) {
+    fadeStrength = v / 100;
+    html.style.setProperty("--fade-strength", fadeStrength);
+    valSpan.textContent = v === 0 ? "off" : v + "%";
+    try { localStorage.setItem("vr-fade", v); } catch {}
+    scheduleCylinder();
+  }
+  slider.addEventListener("input", () => applyFade(parseInt(slider.value)));
+  // Restore saved value
+  try {
+    const saved = localStorage.getItem("vr-fade");
+    if (saved !== null) { slider.value = saved; applyFade(parseInt(saved)); }
+    else applyFade(100);
+  } catch { applyFade(100); }
+})();
 
 /* ══════════════════════════════════════════════════════
    V-RESIZER
@@ -405,6 +539,7 @@ function initDoc(newChunks, displayText) {
       wrapLines();
       scrollToChunk(0, false);
       scheduleCylinder();
+      requestAnimationFrame(updatePromptIndicator);
       [0,1,2].forEach(i => { if (i < chunks.length) enqueue(i); });
       processQueue();
     });
@@ -557,13 +692,13 @@ function applyCylinder() {
     // Normalised distance 0=center 1=edge
     const absd = Math.min(Math.abs((lineMid - midY) / halfH), 1);
 
-    if (absd < 0.30) {
-      // Centre clear zone — fully visible
+    if (fadeStrength === 0 || absd < 0.30) {
       line.style.opacity = "1";
     } else {
-      // Fade out toward edges; the CSS gradient handles the hard mask
       const t = (absd - 0.30) / 0.70;
-      line.style.opacity = Math.max(0, 1 - t * 1.2).toFixed(3);
+      const dimmed = Math.max(0, 1 - t * 1.2);
+      // Lerp between fully visible (1) and dimmed based on fadeStrength
+      line.style.opacity = (1 - fadeStrength * (1 - dimmed)).toFixed(3);
     }
   });
 }
@@ -580,6 +715,7 @@ function onScroll() {
   scheduleCylinder();
   clearTimeout(scrollTimer);
   scrollTimer = setTimeout(detectChunk, 300);
+  requestAnimationFrame(updatePromptIndicator);
 }
 
 function detectChunk() {
@@ -608,7 +744,9 @@ function goToChunk(idx, scrollText) {
 
   animateCarousel(idx);
   document.getElementById("chunk-counter").textContent = `${idx+1} / ${chunks.length}`;
-  document.getElementById("prompt-text").textContent   = chunks[idx] || "";
+
+  // Clear any selection-based override when navigating to a chunk
+  clearSelectionPrompt();
 
   // Queue neighbours
   [idx, idx+1, idx-1, idx+2, idx-2].forEach(i => {
@@ -617,6 +755,8 @@ function goToChunk(idx, scrollText) {
   processQueue();
 
   if (scrollText) scrollToChunk(idx, true);
+
+  requestAnimationFrame(updatePromptIndicator);
 }
 
 function scrollToChunk(idx, smooth) {
@@ -736,23 +876,175 @@ async function processQueue() {
 }
 
 /* ══════════════════════════════════════════════════════
-   PROMPT DROPDOWN
+   PROMPT INDICATOR BAR
+   Maps the current chunk's visible text span onto the
+   left-edge bar. Uses getBoundingClientRect on the
+   anchors so it tracks every scroll instantly.
+   If a selection override is active, uses that range.
 ══════════════════════════════════════════════════════ */
-document.getElementById("prompt-badge").addEventListener("click", () =>
-  document.getElementById("prompt-dropdown").classList.toggle("open"));
-document.getElementById("prompt-close").addEventListener("click", e => {
-  e.stopPropagation();
-  document.getElementById("prompt-dropdown").classList.remove("open");
+function updatePromptIndicator() {
+  const stage     = document.getElementById("cyl-stage");
+  const indicator = document.getElementById("prompt-indicator-range");
+  const tooltip   = document.getElementById("prompt-tooltip");
+  if (!stage || !indicator) return;
+
+  const stageRect = stage.getBoundingClientRect();
+  const stageTop  = stageRect.top;
+  const stageH    = stageRect.height;
+
+  let barTop, barH;
+
+  if (selectionRange) {
+    // Selection override: use the stored stage-relative pixel range
+    barTop = Math.max(0, Math.min(selectionRange.top,    stageH));
+    const bot = Math.max(0, Math.min(selectionRange.bottom, stageH));
+    barH = Math.max(4, bot - barTop);
+  } else {
+    if (!chunks.length) return;
+
+    const anchorCur  = document.getElementById(`ca-${currentIdx}`);
+    const anchorNext = document.getElementById(`ca-${currentIdx + 1}`);
+    if (!anchorCur) return;
+
+    // Skip the leading para-gap: find the first sibling that is NOT .para-gap
+    // and NOT .chunk-anchor — that's the actual first text element.
+    let firstTextEl = anchorCur.nextElementSibling;
+    while (firstTextEl && (firstTextEl.classList.contains("para-gap") ||
+                            firstTextEl.classList.contains("chunk-anchor"))) {
+      firstTextEl = firstTextEl.nextElementSibling;
+    }
+    const startEl = firstTextEl || anchorCur;
+
+    const curScreenY  = startEl.getBoundingClientRect().top - stageTop;
+    const nextScreenY = anchorNext
+      ? anchorNext.getBoundingClientRect().top - stageTop
+      : stageH;
+
+    barTop = Math.max(0, Math.min(curScreenY,  stageH));
+    const barBottom = Math.max(0, Math.min(nextScreenY, stageH));
+    barH = Math.max(4, barBottom - barTop);
+  }
+
+  indicator.style.top    = barTop + "px";
+  indicator.style.height = barH   + "px";
+
+  if (tooltip) {
+    tooltip.style.top    = barTop + "px";
+    tooltip.style.height = barH   + "px";
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   SELECTION-BASED GENERATION
+   Shows a button in the header when the user selects
+   text inside the text column. Clicking it generates
+   an image from the selected text and updates the
+   indicator to show that selection's bounding range.
+══════════════════════════════════════════════════════ */
+const selBtn = document.getElementById("sel-btn");
+
+function clearSelectionPrompt() {
+  selectionPrompt = null;
+  selectionRange  = null;
+  selBtn.style.display = "none";
+  selBtn.classList.remove("active");
+}
+
+document.addEventListener("selectionchange", () => {
+  const sel = window.getSelection();
+  const text = sel ? sel.toString().trim() : "";
+
+  // Only react to selections inside the text scroll area
+  const scroller = document.getElementById("text-scroll");
+  if (!text || !scroller || !sel.rangeCount) {
+    if (!selBtn.classList.contains("active")) {
+      selBtn.style.display = "none";
+    }
+    return;
+  }
+  const range = sel.getRangeAt(0);
+  if (!scroller.contains(range.commonAncestorContainer)) {
+    if (!selBtn.classList.contains("active")) {
+      selBtn.style.display = "none";
+    }
+    return;
+  }
+
+  // Store selection text + rect as pending — do NOT update the indicator yet.
+  // The indicator only updates after the user actually clicks generate.
+  const stage     = document.getElementById("cyl-stage");
+  const stageRect = stage.getBoundingClientRect();
+  const selRect   = range.getBoundingClientRect();
+
+  selectionPrompt = text;
+  // pendingSelectionRange holds the range until the button is clicked
+  window._pendingSelRange = {
+    top:    selRect.top    - stageRect.top,
+    bottom: selRect.bottom - stageRect.top
+  };
+
+  selBtn.style.display = "flex";
+  selBtn.classList.remove("active");
+  // Do NOT call updatePromptIndicator here — image hasn't changed yet
 });
-document.addEventListener("click", e => {
-  if (!document.getElementById("prompt-bar").contains(e.target))
-    document.getElementById("prompt-dropdown").classList.remove("open");
+
+selBtn.addEventListener("click", async () => {
+  if (!selectionPrompt || !modelReady) return;
+  const prompt = selectionPrompt.split(/\s+/).slice(0, 65).join(" ");
+
+  // NOW commit the selection range so the indicator updates
+  if (window._pendingSelRange) {
+    selectionRange = window._pendingSelRange;
+    window._pendingSelRange = null;
+  }
+
+  selBtn.classList.add("active");
+  setStatus("generating", "Generating from selection…");
+  requestAnimationFrame(updatePromptIndicator);
+
+  try {
+    const r = await fetch("/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+    const d = await r.json();
+    if (d.image) {
+      images[currentIdx] = d.image;
+      setSlideImage(currentIdx, d.image);
+    }
+  } catch(e) { console.error(e); }
+  finally {
+    setStatus("ready", "Model ready");
+    selBtn.classList.remove("active");
+  }
 });
+
+// Clear selection prompt if user clicks somewhere else
+document.addEventListener("mousedown", e => {
+  if (!selectionPrompt) return;
+  // If the click is NOT on the button itself, clear on next tick (after selectionchange fires)
+  if (e.target !== selBtn) {
+    setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || !sel.toString().trim()) clearSelectionPrompt();
+    }, 50);
+  }
+});
+
+// Hover wiring: show/hide the border rectangle on indicator bar hover
+(function() {
+  const range   = document.getElementById("prompt-indicator-range");
+  const tooltip = document.getElementById("prompt-tooltip");
+  if (!range || !tooltip) return;
+  range.addEventListener("mouseenter", () => tooltip.classList.add("visible"));
+  range.addEventListener("mouseleave", () => tooltip.classList.remove("visible"));
+})();
 
 /* ══════════════════════════════════════════════════════
    WINDOW RESIZE
 ══════════════════════════════════════════════════════ */
-window.addEventListener("resize", () => { recalcCarousel(); scheduleCylinder(); });
+window.addEventListener("resize", () => { recalcCarousel(); scheduleCylinder(); requestAnimationFrame(updatePromptIndicator); });
 
 document.getElementById("chunk-counter").textContent = "—";
 </script>

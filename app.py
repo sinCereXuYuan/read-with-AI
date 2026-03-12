@@ -183,25 +183,23 @@ def upload():
     except Exception as e:
         return jsonify({"error": f"Could not parse file: {e}"}), 500
 
-    # Split into ~300-word chunks for image-generation prompts.
-    # Paragraphs are accumulated whole until the word threshold is hit,
-    # so each prompt is coherent prose.
-    # display_text is the full original text sent back verbatim so the
-    # browser can render blank lines / paragraph spacing as-is.
-    paragraphs = re.split(r'\n{2,}', text)
+    # Split into paragraph-based chunks for image-generation prompts.
+    # CLIP handles up to 77 tokens (~55–65 words). We use one paragraph per
+    # chunk; if a paragraph is very short (< 40 words) we extend it by
+    # appending the next paragraph(s) until we reach ~55 words or exceed it.
+    # This avoids the CLIP truncation warning while keeping prompts coherent.
+    CLIP_TARGET = 55   # words — comfortably under 77-token limit
+    paragraphs = [p.strip() for p in re.split(r'\n{2,}', text) if p.strip()]
     chunks = []
-    current_words = []
-    chunk_size = 300
-    for para in paragraphs:
-        para_words = para.split()
-        if not para_words:
-            continue
-        current_words.extend(para_words)
-        if len(current_words) >= chunk_size:
-            chunks.append(" ".join(current_words))
-            current_words = []
-    if current_words:
-        chunks.append(" ".join(current_words))
+    i = 0
+    while i < len(paragraphs):
+        buf_words = paragraphs[i].split()
+        i += 1
+        # If the current paragraph is short, keep appending until target reached
+        while i < len(paragraphs) and len(buf_words) < CLIP_TARGET:
+            buf_words += paragraphs[i].split()
+            i += 1
+        chunks.append(" ".join(buf_words))
 
     return jsonify({
         "chunks": chunks,
@@ -216,9 +214,14 @@ def generate():
         return jsonify({"error": "Model not ready yet"}), 503
 
     data = request.json
-    prompt = data.get("prompt", "").strip()[:400]
+    # Keep prompt under ~77 CLIP tokens (~65 words is a safe ceiling)
+    raw_prompt = data.get("prompt", "").strip()
+    prompt_words = raw_prompt.split()[:65]
+    prompt = " ".join(prompt_words)
     if not prompt:
         return jsonify({"error": "Empty prompt"}), 400
+
+    print(f"\n[Vision Reader] Generating image for prompt:\n{prompt}\n", flush=True)
 
     with pipe_lock:
         image = pipe(prompt, num_inference_steps=1, guidance_scale=0.0).images[0]
