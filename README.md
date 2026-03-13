@@ -53,21 +53,21 @@ The status indicator in the top-right corner shows **Loading model…** while th
 
 *Why does an AI-generated illustration help you understand what you're reading?*
 
-The transformer is anchored in token co-occurrence statistics. Human intelligence is anchored in the physical world. 
+The large language model is anchored in token co-occurrence statistics. But human intelligence is anchored in the physical world. 
 
-Human understanding is not built on tokens. It is built on a lifetime of physical experience — things seen, felt, walked through, sat inside of. When you read a word, you don't look up a definition in a dictionary in your head. You reach for a memory that has weight and texture and light. System 2 reasoning — the slow, deliberate kind — runs on top of System 1 pattern recognition that was built over years of perceiving the real world.
+Human understanding is built on a lifetime of physical experience — things seen, felt, walked through, sat inside of. When you read a word, you don't look up a definition in a dictionary in your head. You reach for a memory that has weight and texture and light. System 2 reasoning — the slow, deliberate kind — runs on top of System 1 instinctive memory that was built over years of perceiving the real world.
 
-This is why a Chinese reader who has never encountered Western architecture genuinely cannot picture a medieval great hall. The words are there. The grammar parses. But there is no image to anchor to. The same is true in reverse: an American reader opening a Ming dynasty novel for the first time meets a world where every object, every social gesture, every spatial arrangement is foreign. 
+This is why a Chinese reader who has never encountered Western architecture - however proficient in English - genuinely cannot picture a medieval great hall by text. The same is true in reverse: an American reader opening a Ming dynasty novel for the first time meets a world where every object, every social gesture, every spatial arrangement is foreign. 
 
-Vision Reader is a small attempt to address this. Not by explaining — it just means more text — but by quietly placing an image next to each passage as you go. A visual impression for your system 2 reading to anchor on. 
+Vision Reader is an attempt to address this. Not by explaining — which just means more text — but by quietly placing an image next to each passage as you go. A visual impression for your system 2 reading to anchor on. 
 
-There is an irony here. AI tools have made shallow reading easier, and deep reading rarer. Summarise this, explain that, just give me the answer. The result is a gradual erosion of the capacity to sit with a text long enough for it to matter. Vision Reader is built against that tendency. It does not summarise. It does not extract. It makes reading longer and more immersive, not shorter and more efficient. 
+There is an irony here. AI tools have made shallow reading easier, and deep reading rarer. Summarise this, explain that, just give me the answer. The result is a gradual erosion of the capacity to sit with a text long enough for it to matter. Vision Reader is built against that tendency. It is designed to make reading longer and more immersive, not shorter and more efficient. 
 
 ---
 
 ## Future directions
 
-The current version is a proof of concept. Where this goes next:
+The current version is already a working product. But lots of things can be improved: 
 
 **Character consistency.** A recurring character should look the same on page 300 as they did on page 3. User could customize character appearance at start. 
 

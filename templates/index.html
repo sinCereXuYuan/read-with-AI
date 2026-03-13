@@ -152,7 +152,6 @@ header h1 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weig
   background: var(--accent);
   border-radius: 3px;
   opacity: 0.7;
-  transition: top .35s cubic-bezier(.42,0,.28,1), height .35s cubic-bezier(.42,0,.28,1);
   pointer-events: auto;
   cursor: default;
 }
@@ -710,20 +709,27 @@ function scheduleCylinder() {
 
 /* ══════════════════════════════════════════════════════
    SCROLL → CHUNK DETECTION
+   detectChunkFast: runs every RAF — updates currentIdx
+   and the indicator bar position immediately so the bar
+   tracks the text with zero delay.
+   detectChunk (debounced): does the heavier work —
+   carousel animation, image queue, etc.
 ══════════════════════════════════════════════════════ */
 function onScroll() {
   scheduleCylinder();
+  // Update indicator immediately on every scroll event
+  detectChunkFast();
+  // Debounced: trigger carousel + queue update after scroll settles
   clearTimeout(scrollTimer);
   scrollTimer = setTimeout(detectChunk, 300);
-  requestAnimationFrame(updatePromptIndicator);
 }
 
-function detectChunk() {
+function detectChunkFast() {
+  if (!chunks.length) return;
   const stage = document.getElementById("cyl-stage");
   if (!stage) return;
   const midY = stage.getBoundingClientRect().top + stage.offsetHeight * 0.5;
 
-  // Find which chunk-anchor is closest to screen center
   const anchors = document.querySelectorAll(".chunk-anchor");
   let best = currentIdx, bestDist = Infinity;
   anchors.forEach(a => {
@@ -732,21 +738,34 @@ function detectChunk() {
     if (d < bestDist) { bestDist = d; best = parseInt(a.dataset.idx); }
   });
 
-  if (best !== currentIdx) goToChunk(best, false);
+  // Update currentIdx immediately so updatePromptIndicator uses the right anchor
+  if (best !== currentIdx) {
+    currentIdx = best;
+    document.getElementById("chunk-counter").textContent = `${currentIdx+1} / ${chunks.length}`;
+  }
+
+  // Always redraw the indicator — the anchor positions change every pixel of scroll
+  updatePromptIndicator();
+}
+
+function detectChunk() {
+  // currentIdx is already up to date from detectChunkFast.
+  // Just trigger the carousel + queue side-effects for the current index.
+  goToChunk(currentIdx, false);
 }
 
 /* ══════════════════════════════════════════════════════
    NAVIGATION
 ══════════════════════════════════════════════════════ */
-function goToChunk(idx, scrollText) {
+function goToChunk(idx, scrollText, clearSel) {
   if (idx < 0 || idx >= chunks.length) return;
   currentIdx = idx;
 
   animateCarousel(idx);
   document.getElementById("chunk-counter").textContent = `${idx+1} / ${chunks.length}`;
 
-  // Clear any selection-based override when navigating to a chunk
-  clearSelectionPrompt();
+  // Only clear selection override when user explicitly navigates (carousel click)
+  if (clearSel) clearSelectionPrompt();
 
   // Queue neighbours
   [idx, idx+1, idx-1, idx+2, idx-2].forEach(i => {
@@ -791,7 +810,7 @@ function buildCarousel() {
       <div class="slide-nav"></div>`;
     slide.addEventListener("click", () => {
       const ii = parseInt(slide.dataset.idx);
-      if (ii !== currentIdx) goToChunk(ii, true);
+      if (ii !== currentIdx) goToChunk(ii, true, true);
     });
     strip.appendChild(slide);
   });
@@ -895,9 +914,13 @@ function updatePromptIndicator() {
   let barTop, barH;
 
   if (selectionRange) {
-    // Selection override: use the stored stage-relative pixel range
-    barTop = Math.max(0, Math.min(selectionRange.top,    stageH));
-    const bot = Math.max(0, Math.min(selectionRange.bottom, stageH));
+    // selectionRange is stored as scroll-offset coords — reproject to screen coords
+    const scroller = document.getElementById("text-scroll");
+    const scrollTop = scroller ? scroller.scrollTop : 0;
+    const top    = selectionRange.scrollTop - scrollTop;
+    const bottom = selectionRange.scrollBot - scrollTop;
+    barTop = Math.max(0, Math.min(top,    stageH));
+    const bot = Math.max(0, Math.min(bottom, stageH));
     barH = Math.max(4, bot - barTop);
   } else {
     if (!chunks.length) return;
@@ -977,10 +1000,12 @@ document.addEventListener("selectionchange", () => {
   const selRect   = range.getBoundingClientRect();
 
   selectionPrompt = text;
-  // pendingSelectionRange holds the range until the button is clicked
+  // Store as scroll-offset coordinates (relative to the scroller's content top),
+  // so the indicator can reproject them to screen coords on every scroll frame.
+  const scroller2 = document.getElementById("text-scroll");
   window._pendingSelRange = {
-    top:    selRect.top    - stageRect.top,
-    bottom: selRect.bottom - stageRect.top
+    scrollTop:  selRect.top    - stageRect.top + (scroller2 ? scroller2.scrollTop : 0),
+    scrollBot:  selRect.bottom - stageRect.top + (scroller2 ? scroller2.scrollTop : 0)
   };
 
   selBtn.style.display = "flex";
