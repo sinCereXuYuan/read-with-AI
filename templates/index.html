@@ -48,6 +48,8 @@ body {
   height: 100vh; display: flex; flex-direction: column;
   overflow: hidden; transition: background .3s, color .3s;
 }
+/* workspace fills remaining space after header + optional theme bar */
+.workspace { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
 /* ════════════════════════════════ HEADER */
 header {
@@ -80,9 +82,6 @@ header h1 { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weig
 .sdot.loading    { background: var(--accent); animation: pulse 1.2s infinite; }
 .sdot.generating { background: var(--accent2); animation: pulse .7s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
-
-/* ════════════════════════════════ WORKSPACE */
-.workspace { display: flex; flex: 1; overflow: hidden; min-height: 0; }
 
 /* ════════════════════════════════ V-RESIZER */
 .v-resizer { width: 7px; flex-shrink: 0; cursor: col-resize; position: relative; background: transparent; z-index: 10; display: flex; align-items: center; justify-content: center; transition: background .15s; }
@@ -324,6 +323,114 @@ body.resizing-col { cursor: col-resize !important; user-select: none; }
 .sel-btn:hover { background: var(--accent2); color: var(--surface); }
 .sel-btn.active { background: var(--accent2); color: var(--surface); }
 @keyframes sel-pop { from { opacity:0; transform:scale(.93); } to { opacity:1; transform:scale(1); } }
+
+/* ════════════════════════════════ THEME-BAR TOGGLE BUTTON */
+.theme-bar-btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: transparent; color: var(--text-dim);
+  font-size: .8rem; cursor: pointer;
+  transition: background .18s, border-color .18s, color .18s;
+  flex-shrink: 0;
+}
+.theme-bar-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--rglow); }
+.theme-bar-btn.active { border-color: var(--accent); color: var(--accent); background: var(--rglow); }
+/* Tooltip */
+.theme-bar-btn::after {
+  content: attr(data-tip);
+  position: absolute; top: calc(100% + 7px); left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', monospace; font-size: .58rem;
+  letter-spacing: .06em; padding: 5px 9px; border-radius: 3px;
+  pointer-events: none; opacity: 0;
+  transition: opacity .15s;
+  z-index: 100;
+}
+.theme-bar-btn:hover::after { opacity: 1; }
+
+/* ════════════════════════════════ THEME BAR PANEL */
+#theme-bar {
+  display: none;
+  align-items: center; gap: 8px;
+  padding: 0 22px;
+  height: 40px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  transition: background .3s, border-color .3s;
+}
+#theme-bar.visible { display: flex; }
+#theme-bar::-webkit-scrollbar { height: 3px; }
+#theme-bar::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px; }
+
+.tbar-label {
+  font-family: 'IBM Plex Mono', monospace; font-size: .56rem;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-dim); white-space: nowrap; flex-shrink: 0;
+}
+
+.theme-field-wrap {
+  display: flex; align-items: center; gap: 5px; flex-shrink: 0;
+}
+.theme-field-wrap .tf-label {
+  font-family: 'IBM Plex Mono', monospace; font-size: .56rem;
+  letter-spacing: .07em; text-transform: uppercase;
+  color: var(--text-dim); white-space: nowrap;
+}
+.theme-field {
+  height: 24px; width: 88px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); font-family: 'IBM Plex Mono', monospace;
+  font-size: .62rem; padding: 0 7px; border-radius: 3px;
+  outline: none; transition: border-color .15s;
+}
+.theme-field:focus { border-color: var(--accent); }
+.theme-field::placeholder { color: var(--text-dim); opacity: .55; }
+
+.tbar-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; margin: 0 2px; }
+
+.fill-themes-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; height: 24px;
+  border: 1px solid var(--accent2); color: var(--accent2);
+  font-family: 'IBM Plex Mono', monospace; font-size: .6rem;
+  letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer; background: transparent; white-space: nowrap;
+  border-radius: 3px;
+  transition: background .18s, color .18s;
+  flex-shrink: 0;
+}
+.fill-themes-btn:hover:not(:disabled) { background: var(--accent2); color: var(--surface); }
+.fill-themes-btn:disabled { opacity: .45; cursor: not-allowed; }
+.fill-themes-btn.spinning .fi { animation: spin .9s linear infinite; display: inline-block; }
+
+.clear-themes-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; height: 24px;
+  border: 1px solid var(--border); color: var(--text-dim);
+  font-family: 'IBM Plex Mono', monospace; font-size: .6rem;
+  letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer; background: transparent; white-space: nowrap;
+  border-radius: 3px;
+  transition: background .18s, color .18s, border-color .18s;
+  flex-shrink: 0;
+}
+.clear-themes-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--rglow); }
+
+.theme-active-badge {
+  display: none;
+  font-family: 'IBM Plex Mono', monospace; font-size: .55rem;
+  letter-spacing: .06em; color: var(--accent); white-space: nowrap;
+  padding: 2px 7px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 2px; flex-shrink: 0;
+}
+.theme-active-badge.visible { display: block; }
 </style>
 </head>
 <body>
@@ -341,9 +448,52 @@ body.resizing-col { cursor: col-resize !important; user-select: none; }
   <div class="theme-wrap">
     <span class="tlabel" id="tlabel">Light</span>
     <div class="ttrack" id="ttrack"><div class="tthumb" id="tthumb">☀</div></div>
+    <button class="theme-bar-btn" id="theme-bar-toggle" title=""
+      data-tip="Customise image themes — prepended to every prompt">✦</button>
   </div>
   <div class="status-pill"><div class="sdot" id="sdot"></div><span id="stext">Initialising…</span></div>
 </header>
+
+<!-- ══ THEME BAR (hidden by default) ══ -->
+<div id="theme-bar">
+  <span class="tbar-label">Image themes</span>
+  <div class="tbar-sep"></div>
+
+  <div class="theme-field-wrap">
+    <span class="tf-label">Era</span>
+    <input class="theme-field" id="tf-era" type="text" placeholder="e.g. 1920s" data-slot="era">
+  </div>
+  <div class="theme-field-wrap">
+    <span class="tf-label">Place</span>
+    <input class="theme-field" id="tf-place" type="text" placeholder="e.g. Paris" data-slot="place">
+  </div>
+  <div class="theme-field-wrap">
+    <span class="tf-label">Culture</span>
+    <input class="theme-field" id="tf-culture" type="text" placeholder="e.g. Baroque" data-slot="culture">
+  </div>
+  <div class="theme-field-wrap">
+    <span class="tf-label">Style</span>
+    <input class="theme-field" id="tf-style" type="text" placeholder="e.g. oil painting" data-slot="style">
+  </div>
+  <div class="theme-field-wrap">
+    <span class="tf-label">Tone</span>
+    <input class="theme-field" id="tf-tone" type="text" placeholder="e.g. melancholic" data-slot="tone">
+  </div>
+  <div class="theme-field-wrap">
+    <span class="tf-label">Palette</span>
+    <input class="theme-field" id="tf-palette" type="text" placeholder="e.g. muted warm" data-slot="palette">
+  </div>
+
+  <div class="tbar-sep"></div>
+
+  <button class="fill-themes-btn" id="fill-themes-btn" title="Use a local language model to suggest themes based on the current pages">
+    <span class="fi">⟳</span> Fill in themes
+  </button>
+
+  <button class="clear-themes-btn" id="clear-themes-btn" title="Clear all theme fields">✕ Clear</button>
+
+  <span class="theme-active-badge" id="theme-active-badge">themes active</span>
+</div>
 
 <div class="workspace" id="workspace">
 
@@ -502,6 +652,10 @@ pollStatus();
 document.getElementById("file-input").addEventListener("change", async function() {
   const file = this.files[0]; if (!file) return;
   setStatus("loading","Parsing…");
+
+  // Clear all theme fields when a new document is loaded
+  document.querySelectorAll(".theme-field").forEach(f => { f.value = ""; f.dispatchEvent(new Event("input")); });
+  if (typeof fillAttempt !== "undefined") fillAttempt = 0;
 
   // Show big overlay in text panel
   const overlay  = document.getElementById("parse-overlay");
@@ -882,7 +1036,9 @@ async function processQueue() {
   setStatus("generating", `Generating ${idx+1}/${chunks.length}…`);
 
   try {
-    const r = await fetch("/generate",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:chunks[idx]}) });
+    const themePrefix = (typeof buildThemePrefix === "function") ? buildThemePrefix() : "";
+    const rawPrompt   = themePrefix + chunks[idx];
+    const r = await fetch("/generate",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({prompt:rawPrompt}) });
     const d = await r.json();
     if (d.image) { images[idx] = d.image; setSlideImage(idx, d.image); }
     else images[idx] = "error";
@@ -1015,7 +1171,8 @@ document.addEventListener("selectionchange", () => {
 
 selBtn.addEventListener("click", async () => {
   if (!selectionPrompt || !modelReady) return;
-  const prompt = selectionPrompt.split(/\s+/).slice(0, 65).join(" ");
+  const themePrefix = (typeof buildThemePrefix === "function") ? buildThemePrefix() : "";
+  const prompt = (themePrefix + selectionPrompt).split(/\s+/).slice(0, 65).join(" ");
 
   // NOW commit the selection range so the indicator updates
   if (window._pendingSelRange) {
@@ -1072,6 +1229,120 @@ document.addEventListener("mousedown", e => {
 window.addEventListener("resize", () => { recalcCarousel(); scheduleCylinder(); requestAnimationFrame(updatePromptIndicator); });
 
 document.getElementById("chunk-counter").textContent = "—";
+
+/* ══════════════════════════════════════════════════════
+   THEME BAR
+   • Toggle visibility via the ✦ button in header
+   • Theme fields are prepended to every image prompt
+   • "Fill in themes" uses the local /fill-themes endpoint
+     (POST {context}) → {era, place, culture, style, tone, palette}
+══════════════════════════════════════════════════════ */
+(function() {
+  const bar         = document.getElementById("theme-bar");
+  const toggleBtn   = document.getElementById("theme-bar-toggle");
+  const fillBtn     = document.getElementById("fill-themes-btn");
+  const clearBtn    = document.getElementById("clear-themes-btn");
+  const activeBadge = document.getElementById("theme-active-badge");
+  const fields      = document.querySelectorAll(".theme-field");
+
+  // ── Toggle bar visibility
+  toggleBtn.addEventListener("click", () => {
+    const open = bar.classList.toggle("visible");
+    toggleBtn.classList.toggle("active", open);
+  });
+
+  // ── Track whether any theme field has content
+  function refreshBadge() {
+    const hasAny = [...fields].some(f => f.value.trim());
+    activeBadge.classList.toggle("visible", hasAny);
+    toggleBtn.classList.toggle("active", hasAny || bar.classList.contains("visible"));
+  }
+  fields.forEach(f => f.addEventListener("input", refreshBadge));
+
+  // ── Clear button
+  clearBtn.addEventListener("click", () => {
+    fields.forEach(f => { f.value = ""; });
+    refreshBadge();
+  });
+
+  // ── Build theme prefix string from filled fields
+  window.buildThemePrefix = function() {
+    const parts = [];
+    fields.forEach(f => {
+      const v = f.value.trim();
+      if (v) parts.push(v);
+    });
+    return parts.length ? parts.join(", ") + ", " : "";
+  };
+
+  // ── Fill in themes button
+  // Each click increments an attempt counter — this shifts which nearby chunks
+  // are sampled so repeated clicks produce different results.
+  let fillAttempt = 0;
+
+  fillBtn.addEventListener("click", async () => {
+    if (!chunks.length) return;
+
+    fillAttempt++;
+
+    // Clear existing theme values before filling
+    fields.forEach(f => { f.value = ""; });
+    refreshBadge();
+
+    const n = chunks.length;
+
+    // ── Current context: current page + next few, shifted by attempt
+    // Attempt 0: [cur, cur+1, cur+2, cur+3]
+    // Attempt 1: [cur-1, cur, cur+1, cur+2, cur+3]
+    // Attempt 2: [cur-2, cur-1, cur, cur+1, cur+2, cur+3]  etc.
+    const offset = (fillAttempt - 1) % 4;  // shift back up to 3 slots
+    const curIdxs = [];
+    for (let i = currentIdx - offset; i <= currentIdx + 3; i++) {
+      if (i >= 0 && i < n) curIdxs.push(i);
+    }
+    // Join raw — no word splitting, works for CJK
+    const current_text = curIdxs.map(i => chunks[i]).join("\n\n").slice(0, 1800);
+
+    // ── Book context: sparse sample from start + middle + end (char-sliced)
+    const bookIdxs = [...new Set([
+      0, 1, 2,
+      Math.floor(n * 0.25), Math.floor(n * 0.5), Math.floor(n * 0.75),
+      n - 3, n - 2, n - 1
+    ].filter(i => i >= 0 && i < n))];
+    const book_text = bookIdxs.map(i => chunks[i]).join("\n\n").slice(0, 1800);
+
+    fillBtn.disabled = true;
+    fillBtn.classList.add("spinning");
+    fillBtn.querySelector(".fi").textContent = "⟳";
+
+    try {
+      const r = await fetch("/fill-themes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_text, book_text })
+      });
+      if (!r.ok) throw new Error("Server error");
+      const d = await r.json();
+
+      if (d.error) throw new Error(d.error);
+
+      const slots = ["era","place","culture","style","tone","palette"];
+      slots.forEach(slot => {
+        const el = document.querySelector(`[data-slot="${slot}"]`);
+        if (el && d[slot] && d[slot].trim()) el.value = d[slot].trim();
+      });
+      refreshBadge();
+    } catch(e) {
+      console.error("Fill themes failed:", e);
+      fillBtn.querySelector(".fi").textContent = "✕";
+      setTimeout(() => { fillBtn.querySelector(".fi").textContent = "⟳"; }, 1800);
+    } finally {
+      fillBtn.disabled = false;
+      fillBtn.classList.remove("spinning");
+    }
+  });
+})();
+
 </script>
 </body>
 </html>

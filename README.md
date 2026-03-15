@@ -17,7 +17,8 @@ On a M3 MacBook each generation takes 1-3 seconds, paired with generating one im
 - Supported formats: PDF · TXT · Markdown · DOCX · EPUB · RTF
 - Continuous scrolling text with a cinematic cylinder-fade effect that keeps focus on the current line
 - Vertical indicator bar showing exactly which passage is driving the current image
-- Select any text and click **⊙ Generate from selection** to illustrate an arbitrary excerpt 
+- Select any text and click **⊙ Generate from selection** to illustrate an arbitrary excerpt
+- Themes consistency: click **✦** , set era, place, culture, style, tone and palette to steer every generated image — or click Fill in themes to have a local transformer model infer them from the book's content
 - Adjustable fade opacity, dark / light theme, resizable panels, persistent settings
 
 ---
@@ -71,13 +72,11 @@ The current version is already a working product. But lots of things can be impr
 
 **Character consistency.** A recurring character should look the same on page 300 as they did on page 3. User could customize character appearance at start. 
 
-**Theme consistency.** When a book is opened, an optional one-time summarisation pass extracts a global theme prompt — period, mood, visual register — that is prepended to every image generation call as a style frame. 
-
 **Dedicated model training.** SDXL-Turbo is a general-purpose model. A model trained specifically on literary illustration — book covers, historical engravings, architectural drawings, maps — would produce images far better suited to the task. The visual vocabulary of a well-read person is very different from the visual vocabulary of the internet.
 
 **Diagram and figure generation.** For non-fiction and academic reading, the most useful illustration is often not a scene but a diagram — a chart of relationships, a timeline, a spatial layout. Generating structured figures from text is a natural extension.
 
-**Second language learning.** The same visual anchoring that helps a reader engage with an unfamiliar culture helps a language learner acquire vocabulary. Personal word list, flash cards, user sharing market, are all useful features. 
+**Second language learning.** The same visual anchoring that helps a reader engage with an unfamiliar culture helps a language learner acquire vocabulary. Personal word list, flash cards, bookmarks, bookshelves, user sharing market, are all useful features. 
 
 
 ---
